@@ -1,4 +1,3 @@
-// tools/testfilter/main.go
 package main
 
 import (
@@ -6,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/rhydori/testfilter/ansi"
 )
 
 const (
@@ -15,6 +16,8 @@ const (
 )
 
 func main() {
+	ansi.EnableANSI()
+
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		line := scanner.Text()
