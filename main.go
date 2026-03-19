@@ -7,16 +7,19 @@ import (
 	"strings"
 
 	"github.com/rhydori/testfilter/ansi"
+	"golang.org/x/term"
 )
 
 const (
-	green = "\x1b[32m"
-	red   = "\x1b[31m"
-	reset = "\x1b[0m"
+	green = "\033[32m"
+	red   = "\033[31m"
+	reset = "\033[0m"
 )
 
 func main() {
-	ansi.EnableANSI()
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+		ansi.EnableANSI()
+	}
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
