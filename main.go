@@ -31,6 +31,16 @@ func main() {
 	for scanner.Scan() {
 		line := scanner.Text()
 		trimmed := strings.TrimSpace(line)
+
+		isKnownPrefix := strings.HasPrefix(trimmed, "--- PASS") ||
+			strings.HasPrefix(trimmed, "--- FAIL") ||
+			strings.HasPrefix(trimmed, "--- SKIP") ||
+			strings.HasPrefix(trimmed, "=== RUN") ||
+			strings.HasPrefix(trimmed, "=== CONT") ||
+			strings.HasPrefix(trimmed, "=== NAME") ||
+			strings.HasPrefix(trimmed, "FAIL") ||
+			strings.HasPrefix(trimmed, "ok")
+
 		switch {
 		case strings.HasPrefix(trimmed, "--- PASS"):
 			isNameBlock = false
@@ -48,8 +58,10 @@ func main() {
 			isNameBlock = true
 			fmt.Println(purple + line + reset)
 
-		case isNameBlock && (strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t")):
-			fmt.Println(purple + line + reset)
+		case isNameBlock && !isKnownPrefix:
+			if !strings.Contains(trimmed, " [INFO] ") && !strings.Contains(trimmed, " [DEBUG] ") && !strings.Contains(trimmed, " [WARN] ") && !strings.Contains(trimmed, " [ERROR] ") && !strings.Contains(trimmed, " [FATAL] ") {
+				fmt.Println(purple + line + reset)
+			}
 
 		default:
 			isNameBlock = false
