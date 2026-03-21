@@ -20,16 +20,29 @@ const (
 	reset  = "\033[0m"
 )
 
+type nameBlock struct {
+	lines []string
+}
+
 func main() {
 	if term.IsTerminal(int(os.Stdout.Fd())) {
 		ansi.EnableANSI()
 	}
 
 	scanner := bufio.NewScanner(os.Stdin)
-	isNameBlock := false
 
+	fmt.Println("Running tests...")
+	var lines []string
 	for scanner.Scan() {
-		line := scanner.Text()
+		lines = append(lines, scanner.Text())
+	}
+
+	inNameBlock := false
+	var blocks []nameBlock
+	var current nameBlock
+	var orphanErrors []string
+
+	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
 		isKnownPrefix := strings.HasPrefix(trimmed, "--- PASS") ||
@@ -41,30 +54,75 @@ func main() {
 			strings.HasPrefix(trimmed, "FAIL") ||
 			strings.HasPrefix(trimmed, "ok")
 
+		isLogLine := strings.Contains(trimmed, " [INFO] ") ||
+			strings.Contains(trimmed, " [DEBUG] ") ||
+			strings.Contains(trimmed, " [WARN] ") ||
+			strings.Contains(trimmed, " [ERROR] ") ||
+			strings.Contains(trimmed, " [FATAL] ")
+
+		isErrorLine := !isKnownPrefix && !isLogLine &&
+			(strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t"))
+
 		switch {
 		case strings.HasPrefix(trimmed, "--- PASS"):
-			isNameBlock = false
+			if len(current.lines) > 0 {
+				blocks = append(blocks, current)
+				current = nameBlock{}
+			}
+			inNameBlock = false
 			fmt.Println(green + line + reset)
 
 		case strings.HasPrefix(trimmed, "--- FAIL"):
-			isNameBlock = false
+			if len(current.lines) > 0 {
+				blocks = append(blocks, current)
+				current = nameBlock{}
+			}
+			inNameBlock = false
 			fmt.Println(red + line + reset)
 
 		case strings.HasPrefix(trimmed, "--- SKIP"):
-			isNameBlock = false
+			if len(current.lines) > 0 {
+				blocks = append(blocks, current)
+				current = nameBlock{}
+			}
+			inNameBlock = false
 			fmt.Println(cyan + line + reset)
 
 		case strings.HasPrefix(trimmed, "=== NAME"):
-			isNameBlock = true
-			fmt.Println(purple + line + reset)
-
-		case isNameBlock && !isKnownPrefix:
-			if !strings.Contains(trimmed, " [INFO] ") && !strings.Contains(trimmed, " [DEBUG] ") && !strings.Contains(trimmed, " [WARN] ") && !strings.Contains(trimmed, " [ERROR] ") && !strings.Contains(trimmed, " [FATAL] ") {
-				fmt.Println(purple + line + reset)
+			if len(current.lines) > 0 {
+				blocks = append(blocks, current)
 			}
+			current = nameBlock{lines: []string{purple + line + reset}}
+			inNameBlock = true
+
+		case inNameBlock && isErrorLine:
+			current.lines = append(current.lines, purple+line+reset)
+
+		case !inNameBlock && isErrorLine:
+			orphanErrors = append(orphanErrors, purple+line+reset)
 
 		default:
-			isNameBlock = false
+			inNameBlock = false
+		}
+	}
+
+	if len(current.lines) > 0 {
+		blocks = append(blocks, current)
+	}
+
+	orphanIdx := 0
+	for i := range blocks {
+		if len(blocks[i].lines) == 1 && orphanIdx < len(orphanErrors) {
+			blocks[i].lines = append(blocks[i].lines, orphanErrors[orphanIdx])
+			orphanIdx++
+		}
+	}
+
+	if len(blocks) > 0 {
+		for _, b := range blocks {
+			for _, l := range b.lines {
+				fmt.Println(l)
+			}
 		}
 	}
 }
