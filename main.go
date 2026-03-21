@@ -11,9 +11,13 @@ import (
 )
 
 const (
-	green = "\033[32m"
 	red   = "\033[31m"
-	reset = "\033[0m"
+	green = "\033[32m"
+	//yellow = "\033[33m"
+	//blue   = "\033[34m"
+	purple = "\033[35m"
+	cyan   = "\033[36m"
+	reset  = "\033[0m"
 )
 
 func main() {
@@ -22,13 +26,33 @@ func main() {
 	}
 
 	scanner := bufio.NewScanner(os.Stdin)
+	isNameBlock := false
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "--- PASS") {
+		switch {
+		case strings.HasPrefix(trimmed, "--- PASS"):
+			isNameBlock = false
 			fmt.Println(green + line + reset)
-		} else if strings.HasPrefix(trimmed, "--- FAIL") {
+
+		case strings.HasPrefix(trimmed, "--- FAIL"):
+			isNameBlock = false
 			fmt.Println(red + line + reset)
+
+		case strings.HasPrefix(trimmed, "--- SKIP"):
+			isNameBlock = false
+			fmt.Println(cyan + line + reset)
+
+		case strings.HasPrefix(trimmed, "=== NAME"):
+			isNameBlock = true
+			fmt.Println(purple + line + reset)
+
+		case isNameBlock && (strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t")):
+			fmt.Println(purple + line + reset)
+
+		default:
+			isNameBlock = false
 		}
 	}
 }
